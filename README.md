@@ -6,7 +6,7 @@
 
 🎥 **No uploads. No backend. No installation.**
 
-**[🚀 Open FrameForge](https://me872.github.io/FrameForge/)** · **[📦 View Source](https://github.com/Me872/FrameForge)**
+**[🚀 Open FrameForge](https://me872.github.io/FrameForge/)**
 
 ---
 
