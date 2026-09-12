@@ -1,142 +1,140 @@
-# FrameForge
+# 🎞️ FrameForge
 
-A fast, browser-based video frame extractor and frame stacker.
+### Fast, browser-based video frame extraction and frame stacking.
 
-FrameForge runs entirely in your browser, so you can extract frames and create stacked images without uploading your videos to a server.
+**FrameForge** lets you extract frames from videos, record directly from your camera, and combine frames into powerful stacked images — all directly in your browser.
+
+🎥 **No uploads. No backend. No installation.**
+
+**[🚀 Open FrameForge](https://me872.github.io/FrameForge/)** · **[📦 View Source](https://github.com/Me872/FrameForge)**
+
+---
 
 ## ✨ Features
 
-- 🎞️ Extract frames from local video files
-- 🖱️ Drag-and-drop video importing
-- 📁 Standard video file picker
-- 📷 Record video directly from your camera
-- 🖼️ Export individual frames as PNG
-- 📦 Automatically package extracted frames into a ZIP
-- 🔢 Multiple extraction rates:
-  - Source / 30 FPS fallback
-  - 30 FPS
-  - 24 FPS
-  - 15 FPS
-  - 10 FPS
-  - 5 FPS
-- 🧮 Frame stacking modes:
-  - Average
-  - Median
-  - Lighten
-  - Darken
-  - Difference
-- 📊 Live processing progress
-- 📝 Processing log
-- 🔍 Preview extracted/stacked results
-- 🌙 Glass-style dark interface
-- 🚀 No installation required
-- 🔒 Video stays on your device
+- 🎞️ **Video frame extraction**
+- 🖱️ **Drag-and-drop importing**
+- 📁 **Video file picker**
+- 📷 **Built-in camera recording**
+- 🖼️ **PNG frame export**
+- 📦 **Automatic ZIP packaging**
+- 🧮 **Frame stacking**
+- 📊 **Live processing progress**
+- 📝 **Detailed processing log**
+- 🔍 **Result preview**
+- 🌙 **Modern glass-style interface**
+- 🚀 **No installation required**
+- 🔒 **Local browser processing**
+- 🌐 **Works with GitHub Pages**
 
-## 🧮 Stacking Modes
+---
 
-### Average
+# 🧮 Frame Stacking
 
-Combines the selected frames by averaging their RGB values.
+FrameForge can process multiple video frames together to create a single composite image.
 
-Useful for:
+## Average
 
-- Reducing random noise
-- Creating motion-blended images
+Calculates the average RGB value of each pixel across the selected frames.
+
+**Great for:**
+
+- Noise reduction
+- Motion blending
+- Experimental photography
 - Long-exposure-style effects
+- Creating smooth composite images
 
-### Median
+---
 
-Uses the median RGB value of each pixel across the selected frames.
+## Median
 
-Useful for:
+Calculates the median RGB value of each pixel across the selected frames.
+
+**Great for:**
 
 - Removing moving objects
 - Reducing transient noise
-- Creating clean static backgrounds
+- Creating clean backgrounds
+- Static-scene extraction
 
-Median processing is limited to 80 frames to prevent excessive browser memory usage.
+> ⚠️ Median stacking is limited to **80 frames** to reduce excessive browser memory usage.
 
-### Lighten
+---
 
-Keeps the brightest value from each frame for every pixel.
+## Lighten
 
-Useful for:
+For each pixel, FrameForge keeps the brightest RGB values encountered across the frames.
 
-- Light trails
-- Fireworks
-- Stars
-- Moving lights
+**Great for:**
 
-### Darken
+- ⭐ Stars
+- ✨ Light trails
+- 🎆 Fireworks
+- 💡 Moving lights
+- Night photography effects
 
-Keeps the darkest value from each frame.
+---
 
-Useful for:
+## Darken
+
+For each pixel, FrameForge keeps the darkest RGB values encountered across the frames.
+
+**Great for:**
 
 - Motion analysis
 - Dark-object accumulation
-- Certain animation and exposure effects
+- Experimental exposure effects
+- Animation analysis
 
-### Difference
+---
 
-Calculates the absolute RGB difference between accumulated frames.
+## Difference
 
-Useful for:
+Calculates absolute RGB differences between accumulated frames.
+
+**Great for:**
 
 - Motion visualization
-- Detecting changes between frames
-- Experimental frame effects
+- Detecting changes
+- Comparing frames
+- Experimental visual effects
 
-## 🌐 Browser Processing
+---
 
-FrameForge does not require a backend.
+# 🎚️ Extraction Rates
 
-Everything is processed using browser APIs including:
+FrameForge currently supports:
 
-- HTML5 `<video>`
-- Canvas
-- Canvas `ImageData`
-- `MediaRecorder`
-- Blob URLs
-- Browser file APIs
+| FPS | Use |
+|---:|---|
+| Source | Source-style extraction with a 30 FPS fallback |
+| 30 FPS | High frame sampling |
+| 24 FPS | Film-style sampling |
+| 15 FPS | Medium sampling |
+| 10 FPS | Reduced sampling |
+| 5 FPS | Fast extraction |
 
-Your video is not automatically uploaded anywhere.
+Lower FPS settings can significantly reduce processing time and memory usage.
 
-## 🚀 Usage
+---
 
-1. Open FrameForge.
-2. Drop a video into the upload area or select one with the file picker.
-3. Choose an extraction FPS.
-4. Select a processing mode.
-5. Click **Extract Frames**.
-6. Wait for processing to finish.
-7. Download the resulting PNG or ZIP.
+# 📦 Output
 
-## 📷 Camera Recording
+## Individual Frames
 
-FrameForge can also record video directly from your camera.
+Select:
 
-Click:
+> **None — export individual frames**
 
-**Record → allow camera access → Stop**
+FrameForge extracts the selected frames as PNG images.
 
-The resulting WebM recording is automatically loaded into FrameForge for processing.
-
-Camera access generally requires a secure context such as HTTPS or localhost.
-
-## 📦 Output
-
-### Individual frame mode
-
-Selecting:
-
-> None — export individual frames
-
-creates a ZIP containing files such as:
+Example:
 
 ```text
 frame_000001.png
 frame_000002.png
 frame_000003.png
 frame_000004.png
+frame_000005.png
 ...
