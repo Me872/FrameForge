@@ -4,6 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>FrameForge — Local Video Frame Extractor</title>
+
+<script>
+if(location.pathname==="/FrameForge"){
+location.replace("/FrameForge/"+location.search+location.hash);
+}
+</script>
+
 <style>
 *{
 box-sizing:border-box;
@@ -223,6 +230,13 @@ button:active{
 transform:translateY(0);
 }
 
+button:disabled{
+opacity:.45;
+cursor:not-allowed;
+transform:none;
+filter:none;
+}
+
 .primary{
 width:100%;
 background:linear-gradient(135deg,#6078ff,#7b42ff);
@@ -427,6 +441,7 @@ display:none;
 }
 </style>
 </head>
+
 <body>
 
 <div class="app">
@@ -470,6 +485,7 @@ display:none;
 
 <div class="field">
 <label for="fps">Extraction rate</label>
+
 <select id="fps">
 <option value="source">Source / 30 FPS fallback</option>
 <option value="30">30 FPS</option>
@@ -478,8 +494,8 @@ display:none;
 <option value="10">10 FPS</option>
 <option value="5">5 FPS</option>
 </select>
-</div>
 
+</div>
 </div>
 
 <div class="section">
@@ -487,6 +503,7 @@ display:none;
 
 <div class="field">
 <label for="mode">Processing mode</label>
+
 <select id="mode">
 <option value="none">None — export individual frames</option>
 <option value="average">Average</option>
@@ -495,16 +512,14 @@ display:none;
 <option value="darken">Darken</option>
 <option value="difference">Difference</option>
 </select>
-</div>
 
+</div>
 </div>
 
 <div class="section">
-
 <button class="primary" id="processBtn" disabled>
 Extract Frames
 </button>
-
 </div>
 
 <button class="secondary" id="clearBtn" style="width:100%">
@@ -530,7 +545,7 @@ Clear
 
 <video id="video" controls playsinline></video>
 <canvas id="canvas"></canvas>
-<img class="result-image" id="resultImage">
+<img class="result-image" id="resultImage" alt="FrameForge result">
 
 </div>
 
@@ -553,9 +568,7 @@ Clear
 <div class="log" id="log"></div>
 
 </div>
-
 </div>
-
 </div>
 
 <div class="footer">
@@ -615,8 +628,21 @@ progressLabel.textContent=label||"";
 function formatBytes(bytes){
 if(!bytes)return"0 B";
 const units=["B","KB","MB","GB"];
-const i=Math.floor(Math.log(bytes)/Math.log(1024));
+const i=Math.min(
+units.length-1,
+Math.floor(Math.log(bytes)/Math.log(1024))
+);
 return`${(bytes/Math.pow(1024,i)).toFixed(i?2:0)} ${units[i]}`;
+}
+
+function escapeHTML(text){
+return String(text).replace(/[&<>"']/g,m=>({
+"&":"&amp;",
+"<":"&lt;",
+">":"&gt;",
+'"':"&quot;",
+"'":"&#039;"
+}[m]));
 }
 
 function resetResult(){
@@ -628,6 +654,7 @@ resultURL=null;
 resultImage.style.display="none";
 resultImage.removeAttribute("src");
 outputActions.style.display="none";
+downloadBtn.textContent="Download PNG";
 }
 
 function loadFile(file){
@@ -639,11 +666,16 @@ log("Rejected file: not a video");
 return;
 }
 
-currentFile=file;
-
 if(videoURL){
 URL.revokeObjectURL(videoURL);
+videoURL=null;
 }
+
+if(video.srcObject){
+video.srcObject=null;
+}
+
+currentFile=file;
 
 videoURL=URL.createObjectURL(file);
 video.src=videoURL;
@@ -655,7 +687,7 @@ resetResult();
 fileInfo.style.display="block";
 fileInfo.innerHTML=
 `<strong>${escapeHTML(file.name)}</strong><br>`+
-`${formatBytes(file.size)} · ${file.type||"video"}`;
+`${formatBytes(file.size)} · ${escapeHTML(file.type||"video")}`;
 
 processBtn.disabled=false;
 
@@ -681,16 +713,6 @@ log("Browser could not decode this video.");
 log(`Loaded file: ${file.name}`);
 }
 
-function escapeHTML(text){
-return String(text).replace(/[&<>"']/g,m=>({
-"&":"&amp;",
-"<":"&lt;",
-">":"&gt;",
-'"':"&quot;",
-"'":"&#039;"
-}[m]));
-}
-
 dropzone.addEventListener("click",()=>{
 fileInput.click();
 });
@@ -704,6 +726,7 @@ loadFile(fileInput.files[0]);
 ["dragenter","dragover"].forEach(event=>{
 dropzone.addEventListener(event,e=>{
 e.preventDefault();
+e.stopPropagation();
 dropzone.classList.add("drag");
 });
 });
@@ -711,6 +734,7 @@ dropzone.classList.add("drag");
 ["dragleave","drop"].forEach(event=>{
 dropzone.addEventListener(event,e=>{
 e.preventDefault();
+e.stopPropagation();
 dropzone.classList.remove("drag");
 });
 });
@@ -720,74 +744,73 @@ const file=e.dataTransfer.files[0];
 if(file)loadFile(file);
 });
 
-function seek(video,time){
+function seek(videoElement,time){
 
 return new Promise((resolve,reject)=>{
 
 let done=false;
 
+const cleanup=()=>{
+videoElement.removeEventListener("seeked",finish);
+videoElement.removeEventListener("error",error);
+};
+
 const finish=()=>{
 if(done)return;
 done=true;
-video.removeEventListener("seeked",finish);
-video.removeEventListener("error",error);
+cleanup();
 resolve();
 };
 
 const error=()=>{
 if(done)return;
 done=true;
-video.removeEventListener("seeked",finish);
-video.removeEventListener("error",error);
+cleanup();
 reject(new Error("Video seek failed"));
 };
 
-video.addEventListener("seeked",finish,{once:true});
-video.addEventListener("error",error,{once:true});
+videoElement.addEventListener("seeked",finish,{once:true});
+videoElement.addEventListener("error",error,{once:true});
 
 try{
-video.currentTime=Math.max(
+
+const safeTime=Math.max(
 0,
-Math.min(time,Math.max(0,video.duration-.001))
+Math.min(
+Number(time)||0,
+Math.max(0,videoElement.duration-.001)
+)
 );
+
+videoElement.currentTime=safeTime;
+
 }catch(err){
 error();
 }
 
 });
-
 }
 
-function canvasPNG(canvas){
+function canvasPNG(canvasElement){
 
 return new Promise((resolve,reject)=>{
 
-canvas.toBlob(blob=>{
-if(blob)resolve(blob);
-else reject(new Error("Could not encode PNG"));
+canvasElement.toBlob(blob=>{
+
+if(blob){
+resolve(blob);
+}else{
+reject(new Error("Could not encode PNG"));
+}
+
 },"image/png");
 
 });
-
 }
 
 function makeZip(files){
 
 const encoder=new TextEncoder();
-
-function crc32(bytes){
-
-let table=makeCRC();
-
-let crc=-1;
-
-for(let i=0;i<bytes.length;i++){
-crc=(crc>>>8)^table[(crc^bytes[i])&255];
-}
-
-return(crc^(-1))>>>0;
-
-}
 
 function makeCRC(){
 
@@ -798,15 +821,29 @@ for(let n=0;n<256;n++){
 let c=n;
 
 for(let k=0;k<8;k++){
-c=(c&1)?(0xEDB88320^(c>>>1)):(c>>>1);
+c=(c&1)
+?(0xEDB88320^(c>>>1))
+:(c>>>1);
 }
 
 table[n]=c>>>0;
-
 }
 
 return table;
+}
 
+const crcTable=makeCRC();
+
+function crc32(bytes){
+
+let crc=-1;
+
+for(let i=0;i<bytes.length;i++){
+crc=(crc>>>8)^
+crcTable[(crc^bytes[i])&255];
+}
+
+return(crc^(-1))>>>0;
 }
 
 function u16(n){
@@ -827,8 +864,13 @@ n&255,
 
 function concat(parts){
 
-let size=parts.reduce((a,b)=>a+b.length,0);
-let out=new Uint8Array(size);
+let size=0;
+
+for(const part of parts){
+size+=part.length;
+}
+
+const out=new Uint8Array(size);
 let offset=0;
 
 for(const part of parts){
@@ -837,16 +879,20 @@ offset+=part.length;
 }
 
 return out;
-
 }
 
-return Promise.all(files.map(async(file,index)=>{
+return Promise.all(
+files.map(async file=>{
 
 const name=encoder.encode(file.name);
-const data=new Uint8Array(await file.blob.arrayBuffer());
+const data=new Uint8Array(
+await file.blob.arrayBuffer()
+);
+
 const crc=crc32(data);
 
 const local=concat([
+
 u32(0x04034b50),
 u16(20),
 u16(0),
@@ -860,6 +906,7 @@ u16(name.length),
 u16(0),
 name,
 data
+
 ]);
 
 return{
@@ -869,7 +916,8 @@ data,
 crc
 };
 
-})).then(entries=>{
+})
+).then(entries=>{
 
 let offset=0;
 const central=[];
@@ -877,6 +925,7 @@ const central=[];
 for(const entry of entries){
 
 const centralRecord=concat([
+
 u32(0x02014b50),
 u16(20),
 u16(20),
@@ -895,6 +944,7 @@ u16(0),
 u32(0),
 u32(offset),
 entry.name
+
 ]);
 
 central.push(centralRecord);
@@ -905,6 +955,7 @@ offset+=entry.local.length;
 const centralData=concat(central);
 
 const end=concat([
+
 u32(0x06054b50),
 u16(0),
 u16(0),
@@ -913,18 +964,72 @@ u16(entries.length),
 u32(centralData.length),
 u32(offset),
 u16(0)
+
 ]);
 
-const all=[
+return new Blob([
 ...entries.map(e=>e.local),
 centralData,
 end
-];
-
-return new Blob(all,{type:"application/zip"});
-
+],{
+type:"application/zip"
 });
 
+});
+}
+
+function showPNGResult(blob,filename){
+
+if(resultURL){
+URL.revokeObjectURL(resultURL);
+}
+
+resultURL=URL.createObjectURL(blob);
+
+resultImage.src=resultURL;
+resultImage.style.display="block";
+
+video.style.display="none";
+empty.style.display="none";
+
+outputActions.style.display="flex";
+
+downloadBtn.textContent="Download PNG";
+
+downloadBtn.onclick=()=>{
+downloadURL(resultURL,filename);
+};
+
+openBtn.onclick=()=>{
+window.open(resultURL,"_blank","noopener");
+};
+}
+
+function showZIPResult(blob,filename){
+
+if(resultURL){
+URL.revokeObjectURL(resultURL);
+}
+
+resultURL=URL.createObjectURL(blob);
+
+resultImage.style.display="none";
+resultImage.removeAttribute("src");
+
+video.style.display="none";
+empty.style.display="none";
+
+outputActions.style.display="flex";
+
+downloadBtn.textContent="Download ZIP";
+
+downloadBtn.onclick=()=>{
+downloadURL(resultURL,filename);
+};
+
+openBtn.onclick=()=>{
+window.open(resultURL,"_blank","noopener");
+};
 }
 
 async function processVideo(){
@@ -949,7 +1054,9 @@ canvas.width=w;
 canvas.height=h;
 
 const fpsValue=$("fps").value;
-const fps=fpsValue==="source"?30:Number(fpsValue);
+const fps=fpsValue==="source"
+?30
+:Number(fpsValue);
 
 const duration=video.duration;
 
@@ -957,9 +1064,15 @@ if(!Number.isFinite(duration)||duration<=0){
 throw new Error("Invalid video duration.");
 }
 
-const count=Math.max(1,Math.ceil(duration*fps));
+const count=Math.max(
+1,
+Math.ceil(duration*fps)
+);
 
-log(`Processing ${count} frame(s) at ${fps} FPS`);
+log(
+`Processing ${count} frame(s) at ${fps} FPS`
+);
+
 log(`Resolution: ${w}×${h}`);
 log(`Mode: ${mode}`);
 
@@ -993,55 +1106,54 @@ name:`frame_${String(i+1).padStart(6,"0")}.png`,
 blob
 });
 
-const p=(i+1)/count*95;
+const p=((i+1)/count)*95;
 
 progress(
 p,
 `Encoding frame ${i+1}/${count}`
 );
 
-setStatus(`Frame ${i+1}/${count}`);
+setStatus(
+`Frame ${i+1}/${count}`
+);
 
 }
 
-progress(100,"Creating ZIP");
+progress(97,"Creating ZIP");
 
 const zip=await makeZip(files);
 
-showResult(
-URL.createObjectURL(zip),
-"frameforge_frames.zip",
-false
+showZIPResult(
+zip,
+"frameforge_frames.zip"
 );
 
-resultURL=URL.createObjectURL(zip);
-
-downloadBtn.textContent="Download ZIP";
-downloadBtn.onclick=()=>{
-downloadURL(resultURL,"frameforge_frames.zip");
-};
-
-openBtn.onclick=()=>{
-window.open(resultURL,"_blank");
-};
-
 progress(100,"Complete");
+
 setStatus("Extraction complete");
 
-log(`Created ZIP containing ${files.length} PNG frame(s)`);
+log(
+`Created ZIP containing ${files.length} PNG frame(s)`
+);
 
-}else{
+return;
+}
 
 let acc=null;
 let median=[];
 
 const maxMedianFrames=80;
+
 const actualCount=
 mode==="median"
 ?Math.min(count,maxMedianFrames)
 :count;
 
-if(mode==="median"&&count>maxMedianFrames){
+if(
+mode==="median"&&
+count>maxMedianFrames
+){
+
 log(
 `Median limited to ${maxMedianFrames} frames `+
 `to avoid excessive browser memory use.`
@@ -1089,10 +1201,12 @@ dta.data.length
 );
 
 for(let p=0;p<dta.data.length;p+=4){
+
 acc[p]=dta.data[p];
 acc[p+1]=dta.data[p+1];
 acc[p+2]=dta.data[p+2];
 acc[p+3]=255;
+
 }
 
 }else{
@@ -1175,10 +1289,8 @@ acc[p+2]-dta.data[p+2]
 
 }
 
-}
-
 progress(
-(i+1)/actualCount*75,
+((i+1)/actualCount)*75,
 `Reading frame ${i+1}/${actualCount}`
 );
 
@@ -1274,42 +1386,21 @@ progress(99,"Encoding PNG");
 
 const pngBlob=await canvasPNG(canvas);
 
-const filename=`frameforge_${mode}.png`;
+const filename=
+`frameforge_${mode}.png`;
 
-const url=URL.createObjectURL(pngBlob);
-
-resultURL=url;
-
-resultImage.src=url;
-resultImage.style.display="block";
-video.style.display="none";
-
-outputActions.style.display="flex";
-
-downloadBtn.textContent="Download PNG";
-
-downloadBtn.onclick=()=>{
-downloadURL(
-url,
+showPNGResult(
+pngBlob,
 filename
 );
-};
-
-openBtn.onclick=()=>{
-window.open(
-url,
-"_blank"
-);
-};
 
 progress(100,"Complete");
+
 setStatus("Stack complete");
 
 log(
 `Created ${filename} · ${w}×${h}`
 );
-
-}
 
 }catch(error){
 
@@ -1344,37 +1435,68 @@ a.download=name;
 a.rel="noopener";
 
 document.body.appendChild(a);
+
 a.click();
+
 a.remove();
 
 }
 
-processBtn.addEventListener("click",processVideo);
+processBtn.addEventListener(
+"click",
+processVideo
+);
 
-clearBtn.addEventListener("click",()=>{
+clearBtn.addEventListener(
+"click",
+()=>{
 
 if(videoURL){
-URL.revokeObjectURL(videoURL);
+
+URL.revokeObjectURL(
+videoURL
+);
+
 videoURL=null;
+
 }
 
 if(resultURL){
-URL.revokeObjectURL(resultURL);
+
+URL.revokeObjectURL(
+resultURL
+);
+
 resultURL=null;
+
 }
 
 if(cameraStream){
 
-cameraStream.getTracks().forEach(
-track=>track.stop()
-);
+cameraStream
+.getTracks()
+.forEach(track=>track.stop());
 
 cameraStream=null;
 
 }
 
+if(recorder&&
+recorder.state!=="inactive"){
+
+try{
+recorder.stop();
+}catch(e){}
+
+}
+
+recorder=null;
+recordedChunks=[];
+
 video.pause();
+
 video.removeAttribute("src");
+video.srcObject=null;
 video.load();
 
 currentFile=null;
@@ -1383,6 +1505,9 @@ fileInput.value="";
 
 video.style.display="none";
 resultImage.style.display="none";
+
+resultImage.removeAttribute("src");
+
 empty.style.display="block";
 
 fileInfo.style.display="none";
@@ -1391,23 +1516,72 @@ processBtn.disabled=true;
 
 outputActions.style.display="none";
 
-progress(0,"Ready");
-setStatus("Waiting for video");
+progress(
+0,
+"Ready"
+);
+
+setStatus(
+"Waiting for video"
+);
 
 logEl.textContent="";
 
-});
+cameraBtn.disabled=false;
+stopCameraBtn.disabled=true;
 
-cameraBtn.addEventListener("click",async()=>{
+}
+);
+
+function getSupportedRecorderMimeType(){
+
+const types=[
+"video/webm;codecs=vp9,opus",
+"video/webm;codecs=vp8,opus",
+"video/webm",
+"video/mp4"
+];
+
+for(const type of types){
+
+if(
+typeof MediaRecorder!=="undefined"&&
+MediaRecorder.isTypeSupported&&
+MediaRecorder.isTypeSupported(type)
+){
+
+return type;
+
+}
+
+}
+
+return"";
+}
+
+cameraBtn.addEventListener(
+"click",
+async()=>{
 
 try{
 
-cameraStream=await navigator.mediaDevices.getUserMedia({
+if(!navigator.mediaDevices||
+!navigator.mediaDevices.getUserMedia){
+
+throw new Error(
+"Camera access is not supported by this browser."
+);
+
+}
+
+cameraStream=
+await navigator.mediaDevices.getUserMedia({
 video:true,
 audio:true
 });
 
 video.srcObject=cameraStream;
+
 video.style.display="block";
 empty.style.display="none";
 
@@ -1416,16 +1590,36 @@ stopCameraBtn.disabled=false;
 
 recordedChunks=[];
 
-recorder=new MediaRecorder(
+const mimeType=
+getSupportedRecorderMimeType();
+
+recorder=mimeType
+?new MediaRecorder(
 cameraStream,
-{mimeType:"video/webm"}
+{mimeType}
+)
+:new MediaRecorder(
+cameraStream
 );
 
 recorder.ondataavailable=e=>{
 
-if(e.data.size>0){
+if(e.data&&e.data.size>0){
+
 recordedChunks.push(e.data);
+
 }
+
+};
+
+recorder.onerror=e=>{
+
+log(
+`Recorder error: ${
+e.error?.message||
+"unknown error"
+}`
+);
 
 };
 
@@ -1433,22 +1627,67 @@ recorder.onstop=()=>{
 
 const blob=new Blob(
 recordedChunks,
-{type:"video/webm"}
+{
+type:
+mimeType||
+"video/webm"
+}
 );
 
 const file=new File(
 [blob],
 `camera_${Date.now()}.webm`,
-{type:"video/webm"}
+{
+type:
+blob.type||
+"video/webm"
+}
 );
-
-loadFile(file);
 
 if(cameraStream){
 
-cameraStream.getTracks().forEach(
-track=>track.stop()
+cameraStream
+.getTracks()
+.forEach(track=>track.stop());
+
+cameraStream=null;
+
+}
+
+video.srcObject=null;
+
+cameraBtn.disabled=false;
+stopCameraBtn.disabled=true;
+
+loadFile(file);
+
+log(
+"Camera recording imported."
 );
+
+};
+
+recorder.start();
+
+setStatus(
+"Recording camera"
+);
+
+log(
+`Camera recording started${
+mimeType
+?` · ${mimeType}`
+:""
+}.`
+);
+
+}catch(error){
+
+if(cameraStream){
+
+cameraStream
+.getTracks()
+.forEach(track=>track.stop());
 
 cameraStream=null;
 
@@ -1457,19 +1696,10 @@ cameraStream=null;
 cameraBtn.disabled=false;
 stopCameraBtn.disabled=true;
 
-log("Camera recording imported.");
-
-};
-
-recorder.start();
-
-setStatus("Recording camera");
-log("Camera recording started.");
-
-}catch(error){
-
 log(
-`Camera error: ${error.message}`
+`Camera error: ${
+error.message||error
+}`
 );
 
 alert(
@@ -1479,28 +1709,47 @@ alert(
 
 }
 
-});
+}
+);
 
-stopCameraBtn.addEventListener("click",()=>{
+stopCameraBtn.addEventListener(
+"click",
+()=>{
 
-if(recorder&&recorder.state!=="inactive"){
+if(
+recorder&&
+recorder.state!=="inactive"
+){
+
 recorder.stop();
+
+setStatus(
+"Finalizing recording..."
+);
+
+return;
+
 }
 
 if(cameraStream){
 
-cameraStream.getTracks().forEach(
-track=>track.stop()
-);
+cameraStream
+.getTracks()
+.forEach(track=>track.stop());
+
+cameraStream=null;
 
 }
 
 cameraBtn.disabled=false;
 stopCameraBtn.disabled=true;
 
-});
+}
+);
 
-window.addEventListener("beforeunload",()=>{
+window.addEventListener(
+"beforeunload",
+()=>{
 
 if(videoURL){
 URL.revokeObjectURL(videoURL);
@@ -1512,16 +1761,23 @@ URL.revokeObjectURL(resultURL);
 
 if(cameraStream){
 
-cameraStream.getTracks().forEach(
-track=>track.stop()
-);
+cameraStream
+.getTracks()
+.forEach(track=>track.stop());
 
 }
 
-});
+}
+);
 
-log("FrameForge initialized.");
-log("Browser-side video processing ready.");
+log(
+"FrameForge initialized."
+);
+
+log(
+"Browser-side video processing ready."
+);
+
 </script>
 
 </body>
